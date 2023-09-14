@@ -76,7 +76,7 @@ async def getBusInfo(bus_no: str):
 '''params는 nx=12&ny=124 의 형태로 와야함'''
 
 
-@app.get("/api/weather/nx={nx}&ny={ny}")
+@app.get("/api/weather")
 # @cachetools.cached(cache)
 async def getWeather(nx: int, ny: int):
     # Get current time
