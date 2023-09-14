@@ -10,16 +10,5 @@ Accept: application/json
 
 ###
 
-GET http://127.0.0.1:8000/businfo/5712
-Accept: application/json
-
-###
-#100100286 5712 Bus RouteId
-
-GET http://127.0.0.1:8000/busRealTime/100100286
-Accept: application/json
-
-###
-
-GET http://127.0.0.1:8000/busRoute/100100286
+GET http://127.0.0.1:8000/api/weather/nx=60&ny=127
 Accept: application/json

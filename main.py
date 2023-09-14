@@ -6,7 +6,7 @@ import uvicorn
 import json
 from dotenv import load_dotenv
 import os
-
+from datetime import datetime, timedelta
 app = FastAPI()
 
 origins = [
@@ -68,76 +68,32 @@ async def getBusInfo(bus_no: str):
         print(f"Received unexpected status code {r.status_code}: {r.text}")
         raise HTTPException(status_code=r.status_code, detail="Failed to fetch data from server")
 
-@app.get("/busRoute/{bus_no}")
-async def getBusRouteInfo(bus_no: str):
-    URL = f"http://ws.bus.go.kr/api/rest/busRouteInfo/getStaionByRoute?serviceKey={API_KEY}&busRouteId={bus_no}"
-    print(f"Fetching: {URL}")
 
-    r = requests.get(URL)
+'''params는 nx=12&ny=124 의 형태로 와야함'''
 
-    if r.status_code == 200:
-        try:
-            root = ET.fromstring(r.content)
 
-            item_list = []
-            for item in root.findall(".//itemList"):
-                item_data = {}
-                for child in item:
-                    item_data[child.tag] = child.text
-                item_list.append(item_data)
+@app.get("/api/weather/nx={nx}&ny={ny}")
+async def getWeather(nx: int, ny: int):
+    # Get current time
+    now = datetime.now() - timedelta(minutes=15)
 
-            for item in item_list:
-                section_id = item.get("direction")
-                item["busDirection"] = "U" if section_id == "홍대입구역" else "D"
-
-            return {"itemList": item_list}
-
-        except ET.ParseError:
-            print("Failed to parse XML. Response content:")
-            print(r.text)
-            raise HTTPException(status_code=500, detail="Failed to parse XML from server")
-
+    # Get base_date and base_time
+    if now.hour == 23 and now.minute > 30:
+        # If it's after 23:30, set base_date to the next day
+        base_date = (now + timedelta(days=1)).strftime("%Y%m%d")
+        base_time = "0000"
     else:
-        print(f"Received unexpected status code {r.status_code}: {r.text}")
-        raise HTTPException(status_code=r.status_code, detail="Failed to fetch data from server")
+        base_date = now.strftime("%Y%m%d")
+        minute = "00" if now.minute <= 30 else "30"
+        base_time = f"{now.hour:02}{minute}"
 
-
-
-@app.get("/busRealTime/{bus_no}")
-async def getBusInfo(bus_no: str):
-    URL = f"http://ws.bus.go.kr/api/rest/buspos/getBusPosByRtid?serviceKey={API_KEY}&busRouteId={bus_no}"
-    print(f"Fetching: {URL}")
+    URL = f"https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst?serviceKey={API_KEY}&pageNo=1&numOfRows=100&dataType=JSON&base_date={base_date}&base_time={base_time}&nx={nx}&ny={ny}"
 
     r = requests.get(URL)
-
     if r.status_code == 200:
-        try:
-            root = ET.fromstring(r.content)
-
-            item_list = []
-            for item in root.findall(".//itemList"):
-                item_data = {}
-                for child in item:
-                    item_data[child.tag] = child.text
-                item_list.append(item_data)
-
-            route_item_list = await getBusRouteInfo(bus_no)
-            route_item_list = route_item_list.get("itemList", [])
-
-            section_to_direction = {item.get("section"): item.get("direction") for item in route_item_list}
-
-            for item in item_list:
-                section_id = item.get("sectionId")
-                direction = section_to_direction.get(section_id, "Unknown")
-                item["busDirection"] = "U" if direction == "홍대입구역" else "D"
-
-            return {"itemList": item_list}
-
-        except ET.ParseError:
-            print("Failed to parse XML. Response content:")
-            print(r.text)
-            raise HTTPException(status_code=500, detail="Failed to parse XML from server")
-
+        response_data = r.json()  # Parse the JSON response
+        items = response_data["response"]["body"]["items"]
+        return items
     else:
         print(f"Received unexpected status code {r.status_code}: {r.text}")
         raise HTTPException(status_code=r.status_code, detail="Failed to fetch data from server")
